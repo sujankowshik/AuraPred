@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Account - AuraPred</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <div class="app-container" style="min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem;">
+    
+    <!-- Header Block -->
+    <header style="width: 100%; max-width: 500px; margin-bottom: 1.5rem; justify-content: center;">
+      <div class="logo">
+        <div class="logo-icon">🏢</div>
+        <div>
+          <h1 class="logo-text">AURA<span style="color: var(--primary);">PRED</span></h1>
+          <div class="logo-tagline">Secure User Registration</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Register Card -->
+    <article class="form-card" style="width: 100%; max-width: 500px; padding: 2.5rem; box-shadow: var(--shadow-card);">
+      <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem; text-align: center;">Create Account</h2>
+      <p class="form-subtitle" style="text-align: center; margin-bottom: 2rem;">Create a secure profile to track your custom home predictions and appreciate index calculations.</p>
+      
+      <!-- Validation Errors list -->
+      {% if errors %}
+        <div style="padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.25rem; font-size: 0.85rem; font-weight: 500; text-align: left; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; display: flex; flex-direction: column; gap: 0.25rem;">
+          <strong style="margin-bottom: 0.25rem;">⚠️ Please fix the following errors:</strong>
+          {% for err in errors %}
+            <div>• {{ err }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form action="/register" method="POST" style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div class="form-group">
+          <label for="username">Choose Username</label>
+          <input type="text" name="username" id="username" class="form-input" required placeholder="At least 3 characters" minlength="3" value="{{ inputs.username if inputs else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input type="email" name="email" id="email" class="form-input" required placeholder="name@domain.com" value="{{ inputs.email if inputs else '' }}">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Create Password</label>
+          <input type="password" name="password" id="password" class="form-input" required placeholder="At least 6 characters" minlength="6">
+        </div>
+
+        <div class="form-group">
+          <label for="confirm_password">Confirm Password</label>
+          <input type="password" name="confirm_password" id="confirm_password" class="form-input" required placeholder="Re-enter password" minlength="6">
+        </div>
+
+        <button type="submit" class="btn-submit" style="margin-top: 0.5rem; width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 600;">
+          👤 Register Secure Account
+        </button>
+      </form>
+
+      <div style="margin-top: 2rem; border-top: 1px dashed var(--border-card); padding-top: 1.5rem; text-align: center; font-size: 0.9rem; color: var(--text-light);">
+        Already have an account? <a href="/login" style="color: var(--primary); font-weight: 600; text-decoration: none; border-bottom: 1px dashed var(--primary);">Sign In Here</a>
+        <br><br>
+        <a href="/" style="color: var(--text-muted); text-decoration: none; font-size: 0.8rem;">← Back to Home Dashboard</a>
+      </div>
+    </article>
+
+    <footer style="margin-top: 2rem; font-size: 0.75rem; opacity: 0.6; text-align: center;">
+      © 2026 AuraPred Valuation Dashboard • All rights reserved.
+    </footer>
+
+  </div>
+
+  <script>
+    // Theme alignment script
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
+</body>
+</html>

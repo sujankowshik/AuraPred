@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>House Price Prediction Result - AuraPred</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Header Block -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🏢</div>
+        <div>
+          <h1 class="logo-text">AURA<span style="color: var(--primary);">PRED</span></h1>
+          <div class="logo-tagline">Valuation Results</div>
+        </div>
+      </div>
+      <nav>
+        <a href="/" class="nav-link">Home Dashboard</a>
+        <a href="/about" class="nav-link">About Model</a>
+      </nav>
+    </header>
+
+    <main class="predict-view-container standalone-result-card" style="grid-template-columns: 1fr;">
+      
+      {% if error %}
+      <!-- Error Panel Card -->
+      <article class="output-panel" style="min-height: 350px; border-color: var(--danger);">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">⚠️</div>
+        <h2 style="color: var(--danger); margin-bottom: 0.5rem;">Input Validation Error</h2>
+        <p style="color: var(--text-muted); max-width: 500px; margin-bottom: 1.5rem;">{{ error | safe }}</p>
+        
+        <div class="btn-back-group">
+          <a href="/" class="btn-back btn-primary">🔙 Adjust Property Details</a>
+        </div>
+      </article>
+      
+      {% elif result %}
+      <!-- Success Price Prediction Output Card -->
+      <article class="output-panel" style="min-height: 480px;">
+        <span class="success-badge">✨ Valuation Generated Successfully</span>
+        
+        <div class="price-display-box" style="margin-top: 1.5rem;">
+          <h3>Estimated Home Market Value</h3>
+          <div class="predicted-price">{{ result.formatted_price }}</div>
+        </div>
+        
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; max-width: 480px;">
+          This property estimation is calculated based on historical housing regression metrics. Pricing is highly optimized but depends on localized market volatility.
+        </p>
+
+        <!-- Specifications Breakdown -->
+        <div class="price-details-card" style="width: 100%; max-width: 500px; margin-bottom: 1.5rem;">
+          <div class="detail-item">
+            <span class="detail-lbl">Area Size</span>
+            <span class="detail-val">{{ "{:,}".format(result.inputs.Area_SqFt) }} sq ft</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-lbl">Neighborhood</span>
+            <span class="detail-val">{{ result.inputs.Location }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-lbl">Bedrooms / Baths</span>
+            <span class="detail-val">{{ result.inputs.Bedrooms }} Beds • {{ result.inputs.Bathrooms }} Baths</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-lbl">Construction Year</span>
+            <span class="detail-val">{{ result.inputs.Year_Built }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-lbl">Parking availability</span>
+            <span class="detail-val">{{ result.inputs.Parking }} Parking</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-lbl">Floors / Amenity</span>
+            <span class="detail-val">{{ result.inputs.Floors }} Floors • {{ result.inputs.Amenities }}</span>
+          </div>
+        </div>
+
+        <div class="model-attribution" style="width: 100%; max-width: 500px;">
+          Trained Engine: <strong>{{ result.model_used }}</strong> • Model Accuracy R²: <strong>{{ result.r2_score }}</strong>
+        </div>
+
+        <div class="btn-back-group" style="margin-top: 2rem;">
+          <a href="/" class="btn-back btn-primary">🏢 Recalculate Value</a>
+          <a href="/" class="btn-back" onclick="window.print(); return false;">🖨️ Print Property Report</a>
+        </div>
+      </article>
+      {% endif %}
+
+    </main>
+
+    <footer>
+      <div>AuraPred Valuation Dashboard • Powered by Flask & Scikit-Learn</div>
+      <div style="font-size: 0.75rem; opacity: 0.7;">© 2026 AuraPred Real Estate Solutions. All rights reserved. Deployment Ready.</div>
+    </footer>
+
+  </div>
+
+  <script>
+    // Simple theme initializer for result page to keep sync with local storage theme
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
+</body>
+</html>

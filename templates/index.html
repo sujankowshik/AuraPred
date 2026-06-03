@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraPred - Premium Real Estate Price Prediction Dashboard</title>
+  <meta name="description" content="Predict housing and property values instantly using an advanced Gradient Boosting Machine Learning regression pipeline. Inspect analytics charts and training benchmarks.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Chart.js line charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Header Block -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🏢</div>
+        <div>
+          <h1 class="logo-text">AURA<span style="color: var(--primary);">PRED</span></h1>
+          <div class="logo-tagline">Machine Learning Valuation</div>
+        </div>
+      </div>
+      
+      <nav aria-label="Main Navigation">
+        <a href="/" class="nav-link active" id="nav-home">Home</a>
+        <a href="/about" class="nav-link" id="nav-about">About Model</a>
+        {% if session.user_id %}
+          <a href="/dashboard" class="nav-link" id="nav-dashboard">Dashboard</a>
+          {% if session.is_admin %}
+            <a href="/admin" class="nav-link" id="nav-admin">Admin</a>
+          {% endif %}
+          <a href="/logout" class="nav-link" id="nav-logout" style="color: var(--accent);">Logout ({{ session.username }})</a>
+        {% else %}
+          <a href="/login" class="nav-link" id="nav-login">Login</a>
+          <a href="/register" class="nav-link" id="nav-register">Register</a>
+        {% endif %}
+      </nav>
+      
+      <div class="controls-group">
+        <button id="theme-toggle" class="btn-icon" aria-label="Toggle Dark/Light Mode" title="Toggle Theme">
+          <span class="moon-icon">🌙</span>
+          <span class="sun-icon">☀️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages-container" style="padding: 1.5rem 2rem 0 2rem; width: 100%;">
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}" style="padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500; text-align: left; display: flex; align-items: center; justify-content: space-between;
+              {% if category == 'success' %}
+                background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981;
+              {% elif category == 'danger' %}
+                background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444;
+              {% elif category == 'warning' %}
+                background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b;
+              {% else %}
+                background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6;
+              {% endif %}">
+              <span>{{ message }}</span>
+              <button type="button" onclick="this.parentElement.style.display='none';" style="background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Hero Banner Segment -->
+    <section class="hero-banner" aria-label="Dashboard Overview">
+      <div class="hero-text">
+        <div class="badge-accuracy">
+          <div class="badge-glow"></div>
+          Model Accuracy: 98.44% R² Score
+        </div>
+        <h1>Estimated Home Values,<br>Powered by Advanced Machine Learning</h1>
+        <p>Valuate real estate properties instantaneously. Enter your home details to run a multi-variable regressive inference computed against 5,000 real estate data distributions.</p>
+      </div>
+      <div class="hero-stats-quick">
+        <div class="quick-stat-box">
+          <div class="quick-stat-val">5.0k</div>
+          <div class="quick-stat-lbl">Trained Samples</div>
+        </div>
+        <div class="quick-stat-box">
+          <div class="quick-stat-val">₹4.2Cr</div>
+          <div class="quick-stat-lbl">Median Price</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabbed Control Hub Navigation -->
+    <div class="tab-controls" role="tablist" aria-label="Dashboard Tab Selector">
+      <button class="tab-btn active" data-tab="prediction" role="tab" aria-selected="true" aria-controls="prediction-tab">
+        <span>🔮</span> Property Valuation
+      </button>
+      <button class="tab-btn" data-tab="analytics" role="tab" aria-selected="false" aria-controls="analytics-tab">
+        <span>📊</span> Model Analytics
+      </button>
+      <button class="tab-btn" data-tab="history" role="tab" aria-selected="false" aria-controls="history-tab">
+        <span>📂</span> Prediction History
+      </button>
+    </div>
+
+    <!-- TAB 1: PREDICTION VIEW -->
+    <main id="prediction-tab" class="tab-content active" role="tabpanel" aria-label="Property Valuation Tab">
+      <div class="predict-view-container">
+        
+        <!-- Input Form Card -->
+        <article class="form-card">
+          <h2>Property Details</h2>
+          <p class="form-subtitle">Enter property specs to initiate the ML price valuation regression model.</p>
+          
+          <form id="predict-form" action="/predict" method="POST">
+            <div class="input-grid">
+              
+              <!-- Interactive Geographic Map Card -->
+              <div class="form-group full-width">
+                <label for="map-search-input">Geographic Sector Map Picker (Search location, click map or drag pin to auto-select Location)</label>
+                <div class="map-search-container" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                  <input type="text" id="map-search-input" class="form-input" placeholder="🔍 Search address, neighborhood, or city..." style="flex: 1; min-width: 200px; min-height: 48px; margin-bottom: 0;">
+                  <div style="display: flex; gap: 0.5rem; width: auto;">
+                    <button type="button" id="btn-map-search" class="btn-back btn-primary" style="min-height: 48px; padding: 0 1.25rem; font-size: 0.9rem; margin-top: 0; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">🔍 Search</button>
+                    <button type="button" id="btn-map-detect" class="btn-back" style="min-height: 48px; padding: 0 1.25rem; font-size: 0.9rem; margin-top: 0; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 0.25rem; background: var(--bg-glass); border: 1px solid var(--border-glass); color: var(--text-main);" title="Detect My Current Location">📍 Locate Me</button>
+                  </div>
+                </div>
+                <div id="map"></div>
+                <p id="map-search-error" style="color: var(--danger); font-size: 0.8rem; margin-top: 0.35rem; display: none; text-align: left; font-weight: 500;"></p>
+              </div>
+
+              <!-- Location (Dropdown) -->
+              <div class="form-group">
+                <label for="Location">Neighborhood Location</label>
+                <select name="Location" id="Location" class="form-select" required>
+                  <option value="" disabled>Select neighborhood...</option>
+                  <option value="Downtown">Downtown (Urban Core)</option>
+                  <option value="Uptown">Uptown (Residential Premium)</option>
+                  <option value="Suburbs" selected>Suburbs (Metro Area)</option>
+                  <option value="Rural">Rural (Outskirts)</option>
+                  <option value="Waterfront">Waterfront (High-End Coastal)</option>
+                </select>
+              </div>
+
+              <!-- Amenities (Dropdown) -->
+              <div class="form-group">
+                <label for="Amenities">Amenities & Finishings</label>
+                <select name="Amenities" id="Amenities" class="form-select" required>
+                  <option value="" disabled>Select grading...</option>
+                  <option value="Basic">Basic (Standard Fixtures)</option>
+                  <option value="Standard" selected>Standard (Modern Renovated)</option>
+                  <option value="Luxury">Luxury (Premium Custom Finishes)</option>
+                </select>
+              </div>
+
+              <!-- Area Sq Ft (Slider) -->
+              <div class="form-group full-width">
+                <label for="Area_SqFt">
+                  Property Area (Square Feet)
+                  <span id="area-val" class="slider-val">2,500 sq ft</span>
+                </label>
+                <input type="range" name="Area_SqFt" id="Area_SqFt" min="500" max="8000" step="50" value="2500" required>
+              </div>
+
+              <!-- Bedrooms (Radio Options) -->
+              <div class="form-group">
+                <label>Bedrooms</label>
+                <div class="radio-group" role="radiogroup" aria-label="Number of Bedrooms">
+                  <div class="radio-option">
+                    <input type="radio" id="bed-2" name="Bedrooms" value="2" checked>
+                    <label for="bed-2" class="radio-label">2 Beds</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="bed-3" name="Bedrooms" value="3">
+                    <label for="bed-3" class="radio-label">3 Beds</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="bed-4" name="Bedrooms" value="4">
+                    <label for="bed-4" class="radio-label">4 Beds</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="bed-5" name="Bedrooms" value="5">
+                    <label for="bed-5" class="radio-label">5+ Beds</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bathrooms (Radio Options) -->
+              <div class="form-group">
+                <label>Bathrooms</label>
+                <div class="radio-group" role="radiogroup" aria-label="Number of Bathrooms">
+                  <div class="radio-option">
+                    <input type="radio" id="bath-15" name="Bathrooms" value="1.5">
+                    <label for="bath-15" class="radio-label">1.5 Baths</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="bath-2" name="Bathrooms" value="2" checked>
+                    <label for="bath-2" class="radio-label">2.0 Baths</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="bath-25" name="Bathrooms" value="2.5">
+                    <label for="bath-25" class="radio-label">2.5 Baths</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="bath-3" name="Bathrooms" value="3">
+                    <label for="bath-3" class="radio-label">3.0+ Baths</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Year Built (Slider) -->
+              <div class="form-group full-width">
+                <label for="Year_Built">
+                  Year Constructed
+                  <span id="year-val" class="slider-val">2005</span>
+                </label>
+                <input type="range" name="Year_Built" id="Year_Built" min="1950" max="2026" step="1" value="2005" required>
+              </div>
+
+              <!-- Floors (Radio Options) -->
+              <div class="form-group">
+                <label>Property Floors</label>
+                <div class="radio-group" role="radiogroup" aria-label="Number of Floors">
+                  <div class="radio-option">
+                    <input type="radio" id="floor-1" name="Floors" value="1" checked>
+                    <label for="floor-1" class="radio-label">1 Floor</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="floor-2" name="Floors" value="2">
+                    <label for="floor-2" class="radio-label">2 Floors</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="floor-3" name="Floors" value="3">
+                    <label for="floor-3" class="radio-label">3 Floors</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="floor-4" name="Floors" value="4">
+                    <label for="floor-4" class="radio-label">4 Floors</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Parking (Radio Buttons) -->
+              <div class="form-group">
+                <label>Private Garage Parking</label>
+                <div class="radio-group" role="radiogroup" aria-label="Parking Availability">
+                  <div class="radio-option">
+                    <input type="radio" id="park-yes" name="Parking" value="Yes" checked>
+                    <label for="park-yes" class="radio-label">Available</label>
+                  </div>
+                  <div class="radio-option">
+                    <input type="radio" id="park-no" name="Parking" value="No">
+                    <label for="park-no" class="radio-label">None</label>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            
+            <button type="submit" class="btn-submit" id="btn-submit">🔮 Analyze & Predict Price</button>
+          </form>
+        </article>
+
+        <!-- Dynamic Output Result Card -->
+        <aside class="result-card-container">
+          <div class="output-panel" id="result-panel">
+            
+            <!-- Default Placeholder View -->
+            <div class="placeholder-view" id="placeholder-view">
+              <div class="placeholder-icon">🏡</div>
+              <h2>Awaiting Valuation</h2>
+              <p>Enter the property specs on the left panel and click "Analyze & Predict" to generate real-time AI estimated valuation price cards.</p>
+            </div>
+
+            <!-- Loading Spinner View -->
+            <div class="loader-view" id="loader-view">
+              <div class="spinner"></div>
+              <h2>Analyzing Market Metrics</h2>
+              <p class="pulse-text">Interfacing with Decision Tree Ensembles...</p>
+            </div>
+
+            <!-- Prediction Result View -->
+            <div class="prediction-view" id="prediction-view">
+              <span class="success-badge">✨ AI Valuation Completed</span>
+              
+              <!-- Multi-Model Valuation Selectors -->
+              <div class="price-display-box" style="margin-bottom: 0.5rem;">
+                <h3>Estimated Market Value (GBR Model)</h3>
+                <div class="predicted-price" id="predicted-price">₹0</div>
+              </div>
+
+              <!-- Multi-Model Side-by-Side Estimates -->
+              <div class="multi-model-grid">
+                <div class="multi-model-card active-model" title="Gradient Boosting Model Ensemble">
+                  <div class="multi-model-name">Grad Boosting</div>
+                  <div class="multi-model-val" id="multimodel-gb-val">₹0</div>
+                </div>
+                <div class="multi-model-card" title="Linear Regression Model">
+                  <div class="multi-model-name">Linear Reg</div>
+                  <div class="multi-model-val" id="multimodel-lr-val">₹0</div>
+                </div>
+                <div class="multi-model-card" title="Random Forest Ensemble">
+                  <div class="multi-model-name">Rand Forest</div>
+                  <div class="multi-model-val" id="multimodel-rf-val">₹0</div>
+                </div>
+              </div>
+              
+              <!-- Property Details Grid -->
+              <div class="price-details-card">
+                <div class="detail-item">
+                  <span class="detail-lbl">Area Size</span>
+                  <span class="detail-val" id="out-area">-</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-lbl">Neighborhood</span>
+                  <span class="detail-val" id="out-location">-</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-lbl">Bedrooms / Baths</span>
+                  <span class="detail-val"><span id="out-beds">-</span> • <span id="out-baths">-</span></span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-lbl">Construction Year</span>
+                  <span class="detail-val" id="out-year">-</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-lbl">Parking availability</span>
+                  <span class="detail-val" id="out-parking">-</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-lbl">Floors / Amenity</span>
+                  <span class="detail-val"><span id="out-floors">-</span> • <span id="out-amenities">-</span></span>
+                </div>
+              </div>
+              
+              <!-- 🔑 Feature Valuation Explainability Waterfall -->
+              <div style="text-align: left; margin: 1.25rem 0 0.5rem 0; border-top: 1px dashed var(--border-card); padding-top: 1rem;">
+                <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">🔑 Feature Valuation Influence</h4>
+              </div>
+              <div class="waterfall-container" id="waterfall-container">
+                <!-- Populated via script.js -->
+              </div>
+
+              <!-- 📈 Dynamic Appreciation line chart -->
+              <div style="text-align: left; margin: 1.25rem 0 0.5rem 0; border-top: 1px dashed var(--border-card); padding-top: 1rem;">
+                <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">📈 Projected Value Appreciation (10-Year Index)</h4>
+              </div>
+              <div style="height: 180px; width: 100%; position: relative; margin-bottom: 1rem;">
+                <canvas id="trend-chart-canvas"></canvas>
+              </div>
+
+              <div class="model-attribution">
+                Trained Engine: <strong id="out-model">Gradient Boosting Regressor</strong> • Model Accuracy R²: <strong id="out-accuracy">98.44%</strong>
+              </div>
+
+              <!-- Stylized Export Report button -->
+              <div class="btn-back-group" style="margin-top: 1rem; width: 100%;">
+                <button type="button" class="btn-back btn-primary" onclick="window.print();" style="width: 100%; justify-content: center; min-height: 48px;">🖨️ Export Property Report PDF</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+
+      <!-- Interactive Mortgage & EMI Calculator -->
+      <article class="emi-calculator-card">
+        <h3><span>🧮</span> Interactive Mortgage & EMI Calculator</h3>
+        <div class="emi-grid">
+          <div class="emi-sliders">
+            <div class="form-group">
+              <label for="emi-downpayment">
+                Down Payment Percentage
+                <span id="emi-downpayment-val" class="slider-val">20%</span>
+              </label>
+              <input type="range" id="emi-downpayment" min="10" max="80" step="5" value="20">
+              <p style="font-size: 0.75rem; color: var(--text-light); text-align: left; margin-top: 0.25rem;">
+                Downpayment Value: <strong id="emi-downpay-num" style="color: var(--primary);">₹0</strong>
+              </p>
+            </div>
+            <div class="form-group">
+              <label for="emi-rate">
+                Interest Rate (YoY %)
+                <span id="emi-rate-val" class="slider-val">8.5%</span>
+              </label>
+              <input type="range" id="emi-rate" min="5" max="15" step="0.25" value="8.5">
+            </div>
+            <div class="form-group">
+              <label for="emi-tenure">
+                Loan Tenure (Years)
+                <span id="emi-tenure-val" class="slider-val">20 Yrs</span>
+              </label>
+              <input type="range" id="emi-tenure" min="5" max="30" step="5" value="20">
+            </div>
+          </div>
+          
+          <div class="emi-outputs">
+            <div class="emi-val" id="emi-monthly-val">₹0</div>
+            <div class="emi-lbl">Monthly EMI Payment</div>
+            
+            <div style="margin-top: 1.25rem;">
+              <div class="emi-val" id="emi-salary-val" style="font-size: 1.5rem; color: var(--accent);">₹0</div>
+              <div class="emi-lbl" style="font-size: 0.7rem;">Min. Monthly Salary Recommended</div>
+            </div>
+            <div class="emi-breakdown-sub">
+              Interest rate calculated on a monthly reducing balance format.
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Property Matchmaker Listings -->
+      <div class="matchmaker-title-row">
+        <h2>🏘️ Database Matchmaker Recommendations</h2>
+        <p>Real statistical housing listings extracted from our database based on similar parameters.</p>
+      </div>
+      <div class="matchmaker-grid" id="matchmaker-grid">
+        <!-- Populated dynamically via script.js -->
+      </div>
+
+    </main>
+
+    <!-- TAB 2: VISUAL ANALYTICS DASHBOARD -->
+    <section id="analytics-tab" class="tab-content" role="tabpanel" aria-label="Model Analytics Tab">
+      
+      <!-- Statistics Dashboard Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-icon">📂</div>
+          <div class="stat-card-info">
+            <h3>Total Samples</h3>
+            <p>{{ "{:,}".format(stats.count) }}</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon">💰</div>
+          <div class="stat-card-info">
+            <h3>Median Price</h3>
+            <p>₹{{ "{:,.0f}".format(stats.median_price) }}</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon">📐</div>
+          <div class="stat-card-info">
+            <h3>Average Area</h3>
+            <p>{{ "{:,.0f}".format(stats.mean_area) }} sq ft</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon">📍</div>
+          <div class="stat-card-info">
+            <h3>Top Location</h3>
+            <p>{{ stats.top_location }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts & Tables Grid -->
+      <div class="charts-grid">
+        
+        <!-- Chart 1: Feature Importance -->
+        <article class="chart-card">
+          <h2>🔑 Feature Importance Influence Weights</h2>
+          <div class="chart-wrapper">
+            <img src="{{ url_for('static', filename='images/feature_importance.png') }}" alt="Feature Importance influence weights calculated by our Gradient Boosting algorithm showing how much area size, waterfront location, luxury amenities etc contribute to pricing">
+          </div>
+        </article>
+
+        <!-- Chart 2: Actual vs Predicted Scatter -->
+        <article class="chart-card">
+          <h2>🎯 Actual vs Predicted Prices Scatter Distribution</h2>
+          <div class="chart-wrapper">
+            <img src="{{ url_for('static', filename='images/actual_vs_predicted.png') }}" alt="Actual vs Predicted Prices scatter distribution plot comparing model outputs to true prices with high correlation R2 value">
+          </div>
+        </article>
+
+        <!-- Chart 3: Model Accuracy Comparison -->
+        <article class="chart-card">
+          <h2>🏆 Machine Learning Regressors Accuracy Comparison</h2>
+          <div class="chart-wrapper">
+            <img src="{{ url_for('static', filename='images/model_comparison.png') }}" alt="Machine Learning Regressors Accuracy comparison bar chart showing Gradient Boosting, Random Forest, and Linear Regression performance metrics">
+          </div>
+        </article>
+
+        <!-- Benchmark Statistics Tables Card -->
+        <article class="chart-card benchmarks-table-card">
+          <h2>🥇 Model Performance Benchmark Metrics</h2>
+          <div class="table-wrapper">
+            <table class="benchmarks-table">
+              <thead>
+                <tr>
+                  <th>Algorithm Model</th>
+                  <th>R² Score (Accuracy)</th>
+                  <th>Mean Absolute Error (MAE)</th>
+                  <th>Root Mean Squared Error (RMSE)</th>
+                  <th>Processing State</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Gradient Boosting Regressor</strong></td>
+                  <td class="metric-high">98.44%</td>
+                  <td>₹2,116,150</td>
+                  <td>₹4,028,599</td>
+                  <td>🥇 Selected Best Model</td>
+                </tr>
+                <tr>
+                  <td>Linear Regression</td>
+                  <td>98.22%</td>
+                  <td>₹2,469,259</td>
+                  <td>₹4,310,188</td>
+                  <td>🥈 Fast Benchmark</td>
+                </tr>
+                <tr>
+                  <td>Random Forest Regressor</td>
+                  <td>97.42%</td>
+                  <td>₹3,143,158</td>
+                  <td>₹5,145,430</td>
+                  <td>🥉 Stable Ensemble</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- TAB 3: PREDICTION HISTORY -->
+    <section id="history-tab" class="tab-content" role="tabpanel" aria-label="Valuation History Tab">
+      <article class="history-card">
+        <div class="history-header">
+          <div>
+            <h2>Property Valuation Log</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem;">Below is a list of your recent property valuations cached locally in your browser.</p>
+          </div>
+          <button id="clear-history" class="btn-clear-history" style="display: none;">Clear Logs</button>
+        </div>
+        
+        <div class="history-list" id="history-list">
+          <!-- Populated dynamically via script.js -->
+        </div>
+      </article>
+    </section>
+
+    <!-- Footer Segment -->
+    <footer>
+      <div>AuraPred Valuation Dashboard • Powered by Flask & Scikit-Learn</div>
+      <div style="font-size: 0.75rem; opacity: 0.7;">© 2026 AuraPred Real Estate Solutions. All rights reserved. Deployment Ready.</div>
+    </footer>
+
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

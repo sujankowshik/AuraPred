@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard - AuraPred</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Header Block -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🏢</div>
+        <div>
+          <h1 class="logo-text">AURA<span style="color: var(--primary);">PRED</span></h1>
+          <div class="logo-tagline">User Valuation Account</div>
+        </div>
+      </div>
+      
+      <nav aria-label="Main Navigation">
+        <a href="/" class="nav-link" id="nav-home">Home</a>
+        <a href="/about" class="nav-link" id="nav-about">About Model</a>
+        <a href="/dashboard" class="nav-link active" id="nav-dashboard">Dashboard</a>
+        {% if session.is_admin %}
+          <a href="/admin" class="nav-link" id="nav-admin">Admin</a>
+        {% endif %}
+        <a href="/logout" class="nav-link" id="nav-logout" style="color: var(--accent);">Logout ({{ session.username }})</a>
+      </nav>
+      
+      <div class="controls-group">
+        <button id="theme-toggle" class="btn-icon" aria-label="Toggle Dark/Light Mode" title="Toggle Theme">
+          <span class="moon-icon">🌙</span>
+          <span class="sun-icon">☀️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages-container" style="padding: 1.5rem 0 0 0; width: 100%;">
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}" style="padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500; text-align: left; display: flex; align-items: center; justify-content: space-between;
+              {% if category == 'success' %}
+                background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981;
+              {% elif category == 'danger' %}
+                background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444;
+              {% else %}
+                background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6;
+              {% endif %}">
+              <span>{{ message }}</span>
+              <button type="button" onclick="this.parentElement.style.display='none';" style="background: none; border: none; color: inherit; font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- User Header Segment -->
+    <section class="hero-banner" aria-label="Dashboard Overview" style="margin-top: 1.5rem;">
+      <div class="hero-text">
+        <div class="badge-accuracy" style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--accent);">
+          👤 Registered User Account
+        </div>
+        <h1>Welcome Back, {{ user.username }}!</h1>
+        <p>Member since: <strong>{{ user.created_at.strftime('%B %d, %Y') }}</strong> • Email: <strong>{{ user.email }}</strong></p>
+      </div>
+      <div class="hero-stats-quick">
+        <div class="quick-stat-box">
+          <div class="quick-stat-val">{{ stats.count }}</div>
+          <div class="quick-stat-lbl">Your Predictions</div>
+        </div>
+        <div class="quick-stat-box">
+          <div class="quick-stat-val">₹{{ "{:,.1f}L".format(stats.avg_price / 100000) if stats.avg_price >= 100000 and stats.avg_price < 10000000 else ("{:,.2f}Cr".format(stats.avg_price / 10000000) if stats.avg_price >= 10000000 else "0") }}</div>
+          <div class="quick-stat-lbl">Avg Prediction</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid" style="margin-top: 1.5rem;">
+      <div class="stat-card">
+        <div class="stat-card-icon">🔮</div>
+        <div class="stat-card-info">
+          <h3>Personal Queries</h3>
+          <p>{{ stats.count }} valuations</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon">💰</div>
+        <div class="stat-card-info">
+          <h3>Average Estimate Value</h3>
+          <p>₹{{ "{:,.0f}".format(stats.avg_price) }}</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon">📍</div>
+        <div class="stat-card-info">
+          <h3>Favorite Location</h3>
+          <p>{{ stats.top_location }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Prediction History -->
+    <main style="margin-top: 2rem;">
+      <article class="history-card" style="width: 100%;">
+        <div class="history-header">
+          <div>
+            <h2>Your Property Valuation History Log</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem;">Below is a list of your property predictions backed up in our SQLite server database.</p>
+          </div>
+          <a href="/" class="btn-back btn-primary" style="text-decoration: none; padding: 0.5rem 1rem; font-size: 0.85rem;">🔮 New Prediction</a>
+        </div>
+        
+        <div class="table-wrapper" style="margin-top: 1.5rem; width: 100%;">
+          {% if logs %}
+            <table class="benchmarks-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Location</th>
+                  <th>Specs (Area / Bed / Bath)</th>
+                  <th>Parking</th>
+                  <th>Amenity Grade</th>
+                  <th>Calculated Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in logs %}
+                  <tr style="animation: fadeIn 0.4s ease-out;">
+                    <td style="color: var(--text-light); font-size: 0.85rem;">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td><strong>📍 {{ log.location }}</strong></td>
+                    <td>📐 {{ "{:,}".format(log.area|int) }} sqft • 🛏️ {{ log.bedrooms }} • 🛀 {{ log.bathrooms }}</td>
+                    <td>🚗 {{ 'Garage space' if log.parking == 'Yes' else 'None' }}</td>
+                    <td>✨ {{ log.amenities }}</td>
+                    <td style="font-weight: 700; color: var(--primary); font-size: 1.05rem;">₹{{ "{:,.0f}".format(log.predicted_price) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div style="padding: 3rem 1rem; text-align: center; color: var(--text-muted);">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">🏡</div>
+              <h3>No predictions logged yet!</h3>
+              <p style="font-size: 0.9rem; margin-top: 0.25rem;">Navigate to the home page, enter property specifications, and perform a calculation to see history logs here.</p>
+            </div>
+          {% endif %}
+        </div>
+      </article>
+    </main>
+
+    <!-- Footer Segment -->
+    <footer>
+      <div>AuraPred Valuation Dashboard • Powered by Flask & Scikit-Learn</div>
+      <div style="font-size: 0.75rem; opacity: 0.7;">© 2026 AuraPred Real Estate Solutions. All rights reserved. Deployment Ready.</div>
+    </footer>
+
+  </div>
+
+  <script>
+    // Theme alignment script
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
+</body>
+</html>
