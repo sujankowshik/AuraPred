@@ -24,8 +24,8 @@ COPY --from=builder /root/.local /root/.local
 COPY . .
 
 ENV PATH=/root/.local/bin:$PATH
-ENV PORT=5001
+ENV PORT=10000
 
-EXPOSE 5001
+EXPOSE 10000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} app:app"]
